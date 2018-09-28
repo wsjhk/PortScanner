@@ -107,7 +107,7 @@ class Template_html(object):
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>游戏部端口安全扫描报告</title>
+            <title>主机端口安全扫描报告</title>
             <link href="http://libs.baidu.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
             <style type="text/css" media="screen">
         body  { font-family: Microsoft YaHei,Tahoma,arial,helvetica,sans-serif;padding: 20px;}
@@ -144,7 +144,7 @@ class Template_html(object):
                                                                         <table style="border-collapse:collapse;border-spacing:0;padding:0;text-align:left;vertical-align:top;width:100%(html)s">
                                                                             <tr style="padding:0;text-align:left;vertical-align:top">
                                                                                 <th style="Margin:0;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;padding:0;text-align:left">
-                                                                                    <h2 class="text-center mail-title" style="Margin:0;Margin-bottom:10px;color:#fff;font-family:Microsoft Yahei;font-size:18pt;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:center;word-wrap:normal">游戏部端口漏洞预警通知</h2>
+                                                                                    <h2 class="text-center mail-title" style="Margin:0;Margin-bottom:10px;color:#fff;font-family:Microsoft Yahei;font-size:18pt;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:center;word-wrap:normal">主机端口漏洞预警通知</h2>
                                                                                     <p class="text-center mail-date" style="Margin:0;Margin-bottom:10px;color:#fff;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;padding-top:15px;text-align:center">
                                                                                         %(time)s
                                                                                     </p>
@@ -281,8 +281,8 @@ class Template_html(object):
                                                                                                     </tbody>
                                                                                                 </table>
                                                                                                 <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">联系我们：
-                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">游戏部运维：李恒(dw_liheng)、黄杰(dw_huangjie1)、张秋凯(dw_zhangqiukai)、李达荣(dw_lidarong)、冼海雄(dw_xianhaixiong)</p>
-                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">邮箱：liheng@yy.com、huangjie1@yy.com、zhangqiukai@yy.com、lidarong@yy.com、xianhaixiong@yy.com</p>
+                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">成员：xxx(xxx)、xxx(xxx)</p>
+                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">邮箱：xxx@xx.com、xxx@xx.com</p>
                                                                                             </th>
                                                                                         </tr>
                                                                                     </table>
