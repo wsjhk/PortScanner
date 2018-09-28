@@ -190,7 +190,7 @@ class Template_html(object):
                                                                 亲、你好!
                                                             </p>
                                                             <p class="text-body mail-dec-text" style="Margin:0;Margin-bottom:10px;background:#f4f4f4;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;line-height:30px;margin:0;margin-bottom:0;padding:0;text-align:left;text-indent:30px;vertical-align:middle">
-                                                                这是一封来自游戏部主机端口漏洞提醒信，为了提醒您及时修复漏洞，我们发送此邮件。
+                                                                这是一封主机端口漏洞提醒信，为了提醒您及时修复漏洞，我们发送此邮件。
                                                             </p>
                                                             <p class="text-body mail-dec-text" style="Margin:0;Margin-bottom:10px;background:#f4f4f4;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;line-height:30px;margin:0;margin-bottom:0;padding:0;text-align:left;text-indent:30px;vertical-align:middle">
                                                                 您名下 <strong style="color:red">%(ip)s</strong> 主机共存在 <strong style="color:red">%(count)s</strong> 个漏洞，<span style="color:#E7505A">请及时检查修复端口漏洞并点击确认修复按钮进行确认。</span>
