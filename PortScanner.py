@@ -1,15 +1,10 @@
 # -*- coding:utf-8 -*-
 
-import nmap, re, sys, pycurl, json, time, pymysql, logging, smtplib, os
+import nmap, re, pycurl, json, time, pymysql, logging, smtplib, os
 from email.mime.text import MIMEText
 from email.header import Header
 from multiprocessing import Pool
 from StringIO import StringIO
-
-# create table scan_port(id int(11) not null auto_increment primary key,ip varchar(20) not null,port int(6) not null,status varchar(20),services varchar(255),deal varchar(20),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-
-conn = pymysql.connect(host='localhost',port=3306,user='root',passwd='root',db="test")
-cursor = conn.cursor()
 
 # 第一步，创建一个logger
 logger = logging.getLogger()
@@ -28,78 +23,103 @@ fh.setFormatter(formatter)
 # 第四步，将logger添加到handler里面
 logger.addHandler(fh)
 
+# PyMySQL连接操作的封装类
+class ConDb():
+    def openClose(fun):
+        def run(self, sql=None):
+            #创建数据库连接
+            db = pymysql.connect(host='localhost', port=3306, user='root', passwd='root', db="test", charset="utf8")
+            #创建游标
+            cursor = db.cursor()
+            try:
+                #使用装饰器，fun是装饰器的参数。。。运行sql语句
+                cursor.execute(fun(self,sql))
+                #得到返回值
+                li = cursor.fetchall()
+                #提交事务
+                db.commit()
+            except Exception as e:
+                li = []
+                #如果出现错误，回滚事务
+                db.rollback()
+                #打印报错信息
+                logging.error('运行',str(fun),'方法时出现错误，错误代码：',e)
+            finally:
+                #关闭游标和数据库连接
+                cursor.close()
+                db.close()
+            try:
+                #返回sql执行信息
+                return li
+            except:
+                logging.error('没有得到返回值，请检查代码，该信息出现在ConDb类中的装饰器方法')
+        return run
 
-def sendemail(content):
+    #runSql 未经封装，可直接运行sql，调用该方法执行sql
+    @openClose
+    def runSql(self, sql):
+        logging.info('调试专用，显示sql：' + sql)
+        return sql
+    #切换数据库
+    def tab(self, db):
+        sql = 'use {}'.format(db)
+        self.runSql(sql)
+    #创建数据库
+    def create_DB(self,name):
+        sql = '''CREATE DATABASE {}'''.format(name)
+        self.runSql(sql)
+    #创建表
+    def create_TB(self, dbname='', tbname='', enging="InnoDB",charset="utf8" ,**kwargs):
+        '''
+        :param dbname:  数据库名称
+        :param tbname:  表名称
+        :param enging:  数据引擎
+        :param charset: 默认编码
+        :param kwargs: 新建的列 和 索引
+        :return:
+        PRIMARY="KEY('id')"  设置主键索引 id 替换成要设置成主键的列
+        UNIQUE = "KEY `name` (`name`)"  设置上下文索引，name 可替换
+        '''
+        self.runSql('''use {}'''.format(dbname))
+        li = []
+        for k, v in kwargs.items():
+            li.append('{} {}'.format(k, v))
+        sql = '''
+            CREATE TABLE `{}` (
+                "{}"
+            ) ENGINE={}  DEFAULT CHARSET={}
 
-    sender = 'xxx@xx.com'
-    receiver = ['xxx@xx.com','xxx@qq.com']
-    subject = '[这是一封测试邮件]服务器端口扫描报告'
-    smtpserver = 'email.xx.com'
-    smtpuser = 'xxx@xx.com'
-    smtppass = 'xxxxxx'
+            '''.format(tbname, li, enging, charset)
+        sql = re.sub(r"""\'|\"|\[|\]""", '', sql)
+        self.runSql(sql)
+    # example:
+    # con.create_TB('test','scan_port',id="int(11)",name="varchar(255)",PRIMARY="KEY('id')" ,UNIQUE = "KEY `name` (`name`)" )
+    # create table scan_port(id int(11) not null auto_increment primary key,ip varchar(20) not null,port int(6) not null,status varchar(20),services varchar(255),deal varchar(20),create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+    # conn = pymysql.connect(host='localhost',port=3306,user='root',passwd='root',db="test")
+    # cursor = conn.cursor()
+    #插入数据
+    def insert_TB(self, tableName, items, *args):
+        '''
+        :param tableName:  插入的表名
+        :param items: 数据源，是一个不嵌套的list
+        :param args:  指定列，不填写不指定
+        :return:
+        '''
+        args = str(args)
+        args = re.sub("'",'',args)
 
-    msg = MIMEText(content,'html','utf-8')#中文需参数‘utf-8'，单字节字符不需要
-    msg['Subject'] = Header(subject, 'utf-8')
-    msg['From'] = '<%s>' % sender
-    msg['To'] = ";".join(receiver)
-    try:
-        smtp = smtplib.SMTP()
-        smtp.connect(smtpserver)
-        smtp.login(smtpuser, smtppass)
-        smtp.sendmail(sender, receiver, msg.as_string())
-        smtp.quit()
-    except Exception,e:
-        print e
-
-def get_iplist():
-    url = 'url'
-    buffer = StringIO()
-    c = pycurl.Curl()  # 创建一个curl对象
-    c.setopt(pycurl.URL, url)
-    c.setopt(pycurl.SSL_VERIFYPEER, 0)
-    c.setopt(pycurl.SSL_VERIFYHOST, 0)
-    # 连接超时时间,5秒
-    c.setopt(pycurl.CONNECTTIMEOUT, 5)
-
-    # 下载超时时间,20秒
-    c.setopt(pycurl.TIMEOUT, 20)
-    c.setopt(pycurl.FORBID_REUSE, 1)
-    c.setopt(pycurl.MAXREDIRS, 1)
-    c.setopt(pycurl.NOPROGRESS, 1)
-    c.setopt(pycurl.DNS_CACHE_TIMEOUT, 30)
-
-    c.setopt(pycurl.WRITEDATA, buffer)
-    try:
-        c.perform()
-    except Exception, e:
-        print "connecion error:" + str(e)
-        c.close()
-        sys.exit()
-
-    body = json.loads(buffer.getvalue())
-    i = 0
-    iplist = []
-    while i < len(body['result']):
-        ip = body['result'][i]['cuccAddr']
-        if ip != None:
-            iplist.append(ip)
-        i += 1
-
-    return iplist
-
-def check_port(portrange):
-    try:
-        p1 = re.compile(r'(\d+)-(\d+)$')
-        p2 = re.compile(r'((\d+,)+)(\d+)$')
-        if p1.match(portrange):
-            return True
-        elif p2.match(portrange):
-            return True
+        items=re.sub(r"\[|\]",'',str(items))
+        if items:
+            sql='''
+            INSERT INTO {} {} VALUES ({})
+            '''.format(tableName,args,items)
         else:
-            return False
-    except Exception as err:
-        logging.error(err)
+            sql = '''
+            INSERT  INTO {}  VALUES ({})
+            '''.format(tableName, items)
+        self.runSql(sql)
 
+# 生成html格式的模板邮件内容
 class Template_html(object):
     """html报告"""
     HTML_TMPL = """
@@ -107,7 +127,7 @@ class Template_html(object):
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <title>主机端口安全扫描报告</title>
+            <title>服务器端口安全扫描报告</title>
             <link href="http://libs.baidu.com/bootstrap/3.0.3/css/bootstrap.min.css" rel="stylesheet">
             <style type="text/css" media="screen">
         body  { font-family: Microsoft YaHei,Tahoma,arial,helvetica,sans-serif;padding: 20px;}
@@ -144,7 +164,7 @@ class Template_html(object):
                                                                         <table style="border-collapse:collapse;border-spacing:0;padding:0;text-align:left;vertical-align:top;width:100%(html)s">
                                                                             <tr style="padding:0;text-align:left;vertical-align:top">
                                                                                 <th style="Margin:0;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;padding:0;text-align:left">
-                                                                                    <h2 class="text-center mail-title" style="Margin:0;Margin-bottom:10px;color:#fff;font-family:Microsoft Yahei;font-size:18pt;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:center;word-wrap:normal">主机端口漏洞预警通知</h2>
+                                                                                    <h2 class="text-center mail-title" style="Margin:0;Margin-bottom:10px;color:#fff;font-family:Microsoft Yahei;font-size:18pt;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:center;word-wrap:normal">服务器端口漏洞预警通知</h2>
                                                                                     <p class="text-center mail-date" style="Margin:0;Margin-bottom:10px;color:#fff;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;padding-top:15px;text-align:center">
                                                                                         %(time)s
                                                                                     </p>
@@ -190,7 +210,7 @@ class Template_html(object):
                                                                 亲、你好!
                                                             </p>
                                                             <p class="text-body mail-dec-text" style="Margin:0;Margin-bottom:10px;background:#f4f4f4;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;line-height:30px;margin:0;margin-bottom:0;padding:0;text-align:left;text-indent:30px;vertical-align:middle">
-                                                                这是一封主机端口漏洞提醒信，为了提醒您及时修复漏洞，我们发送此邮件。
+                                                                这是一封服务器端口漏洞提醒信，为了提醒您及时修复漏洞，我们发送此邮件。
                                                             </p>
                                                             <p class="text-body mail-dec-text" style="Margin:0;Margin-bottom:10px;background:#f4f4f4;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;line-height:30px;margin:0;margin-bottom:0;padding:0;text-align:left;text-indent:30px;vertical-align:middle">
                                                                 您名下 <strong style="color:red">%(ip)s</strong> 主机共存在 <strong style="color:red">%(count)s</strong> 个漏洞，<span style="color:#E7505A">请及时检查修复端口漏洞并点击确认修复按钮进行确认。</span>
@@ -213,6 +233,7 @@ class Template_html(object):
                                                                 </tr>
                                                                 </tbody>
                                                             </table>
+                                                            <div style="overflow-y: scroll;max-height: 300px;">
                                                             <table class="content-table" style="border-collapse:collapse;border-spacing:0;padding:0;text-align:left;vertical-align:top;width:100%(html)s">
                                                                 <thead>
                                                                 <tr style="padding:0;text-align:left;vertical-align:top">
@@ -229,6 +250,12 @@ class Template_html(object):
                                                                         状态
                                                                     </th>
                                                                     <th class="top-blue" style="Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-top:2px #1f83f3 solid;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:700;height:45px;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle">
+                                                                        研发负责人
+                                                                    </th>
+                                                                    <th class="top-orange" style="Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-top:2px #f60 solid;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:700;height:45px;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle">
+                                                                        运维负责人
+                                                                    </th>
+                                                                    <th class="top-blue" style="Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-top:2px #1f83f3 solid;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:700;height:45px;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle">
                                                                         扫描时间
                                                                     </th>
                                                                     <th class="top-orange" style="Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-top:2px #1f83f3 solid;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:700;height:45px;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle">
@@ -240,6 +267,7 @@ class Template_html(object):
                                                                     %(table_tr)s
                                                                 </tbody>
                                                             </table>
+                                                            </div>
                                                             <table class="spacer" style="border-collapse:collapse;border-spacing:0;padding:0;text-align:left;vertical-align:top;width:100%(html)s">
                                                                 <tbody>
                                                                 <tr style="padding:0;text-align:left;vertical-align:top">
@@ -281,8 +309,8 @@ class Template_html(object):
                                                                                                     </tbody>
                                                                                                 </table>
                                                                                                 <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">联系我们：
-                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">成员：xxx(xxx)、xxx(xxx)</p>
-                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">邮箱：xxx@xx.com、xxx@xx.com</p>
+                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">值班同事：username(zhanghao)</p>
+                                                                                                <p style="Margin:0;Margin-bottom:10px;background:#bec2c6;color:#0a0a0a;font-family:Microsoft Yahei;font-size:16px;font-weight:400;line-height:1.3;margin:0;margin-bottom:10px;padding:0;text-align:left">邮箱：xxx@xx.com</p>
                                                                                             </th>
                                                                                         </tr>
                                                                                     </table>
@@ -337,30 +365,34 @@ class Template_html(object):
                 %(status)s
             </td>
             <td style="-moz-hyphens:auto;-webkit-hyphens:auto;Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-collapse:collapse!important;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;height:45px;hyphens:auto;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle;word-wrap:break-word">
+                %(tech_admin)s
+            </td>
+            <td style="-moz-hyphens:auto;-webkit-hyphens:auto;Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-collapse:collapse!important;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;height:45px;hyphens:auto;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle;word-wrap:break-word">
+                %(sysop_admin)s
+            </td>
+            <td style="-moz-hyphens:auto;-webkit-hyphens:auto;Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-collapse:collapse!important;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;height:45px;hyphens:auto;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle;word-wrap:break-word">
                 %(time)s
             </td>
             <td style="-moz-hyphens:auto;-webkit-hyphens:auto;Margin:0;background:#fff;border-bottom:1px #f2f2f2 solid;border-collapse:collapse!important;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;height:45px;hyphens:auto;line-height:1.3;margin:0;padding:0;padding-left:10px;text-align:left;vertical-align:middle;word-wrap:break-word">
                 <a href="http://www.baidu.com" class="bt-blue" style="Margin:0;background:#0c90ff;border:none;border-radius:3px;color:#fff;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:9pt;font-weight:400;height:20px;line-height:20px;margin:0;margin-left:5px;padding:5px;text-align:center;text-decoration:none;vertical-align:middle">&nbsp;确认修复&nbsp;</a><a href="http://www.baidu.com" class="bt-default" style="Margin:0;border:1px #f2f2f2 solid;border-radius:3px;color:#2199e8;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:9pt;font-weight:400;height:20px;line-height:20px;margin:0;margin-left:5px;padding:5px;text-align:center;text-decoration:none;vertical-align:middle">忽略</a>
             </td>
-        </tr>
-        """
+        </tr>"""
 
-    def html_template(self, ip, status, deal):
+    def html_template(self, ip, status, deal, conn):
         table_tr0 = ''
-        sql = "select port,services,create_time from scan_port where ip = '%s' and status = '%s' and deal = '%s'" %(ip, status, deal)
-        try:
-            cursor.execute(sql)
-            res = cursor.fetchall()
-        except:
-            res = []
-            logging.info("Error: unable to fecth data")
+        sql = "select port,services,create_time from scan_port where ip = '%s' and status = '%s' and deal = '%s'" % (
+        ip, status, deal)
+        res = conn.runSql(sql)
+        info_dict = get_hostuser_info(ip)
         for raw in res:
             table_td = self.TABLE_TMPL % dict(
                 ip = ip,
                 port = raw[0],
-                service = raw[1],
+                service = raw[1].encode('utf-8'),
                 status = "open",
                 time = raw[2],
+                tech_admin = info_dict['tech_admin'].encode('utf-8'),
+                sysop_admin = info_dict['sysop_admin'].encode('utf-8'),
             )
             table_tr0 += table_td
 
@@ -371,14 +403,123 @@ class Template_html(object):
             count = len(res),
             table_tr = table_tr0,
         )
-        logging.info('write host %s html template to disk.' % ip)
-        with open(os.path.dirname(os.path.realpath(__file__)) + "/%s.html" %ip, 'wb') as f:
-            f.write(output)
-        return output
 
+        logging.info('write host %s html template to disk.' % ip)
+        with open(os.path.dirname(os.path.realpath(__file__)) + "/%s.html" % ip, 'wb') as f:
+            f.write(output)
+        rs = [output, info_dict['user_email']]
+        return rs
+
+# 发送邮件函数
+def sendemail(content, user='xxx@yy.com'):
+    sender = 'xxx@xx.com'
+    receiver = user
+    subject = '[这是一封测试邮件]服务器端口扫描报告'
+    smtpserver = 'xx.xx.com'
+    smtpuser = 'xxx@xx.com'
+    smtppass = 'xxx'
+
+    # 中文需参数'utf-8'，单字节字符不需要
+    msg = MIMEText(content,'html','utf-8')
+    msg['Subject'] = Header(subject, 'utf-8')
+    msg['From'] = '<%s>' % sender
+    msg['To'] = ";".join(receiver)
+    try:
+        smtp = smtplib.SMTP()
+        smtp.connect(smtpserver)
+        smtp.login(smtpuser, smtppass)
+        smtp.sendmail(sender, receiver, msg.as_string())
+        smtp.quit()
+    except Exception,e:
+        print e
+
+# 请求url并返回json格式结果的函数
+def request_curl(url):
+    buffer = StringIO()
+    # indexfile = open(os.path.dirname(os.path.realpath(__file__)) + "/content.txt", "wb")
+    c = pycurl.Curl()  # 创建一个curl对象
+    c.setopt(pycurl.URL, url)
+    c.setopt(pycurl.SSL_VERIFYPEER, 0)
+    c.setopt(pycurl.SSL_VERIFYHOST, 0)
+    # 连接超时时间,5秒
+    c.setopt(pycurl.CONNECTTIMEOUT, 5)
+
+    # 下载超时时间,20秒
+    c.setopt(pycurl.TIMEOUT, 60)
+    c.setopt(pycurl.FORBID_REUSE, 1)
+    c.setopt(pycurl.MAXREDIRS, 1)
+    c.setopt(pycurl.NOPROGRESS, 1)
+    c.setopt(pycurl.DNS_CACHE_TIMEOUT, 30)
+
+    # c.setopt(pycurl.WRITEDATA, indexfile)
+    c.setopt(pycurl.WRITEDATA, buffer)
+    try:
+        c.perform()
+    except Exception, e:
+        logging.info("connecion error:" + str(e))
+    finally:
+        # indexfile.close()
+        c.close()
+
+    body = json.loads(buffer.getvalue())
+    # file_object = open(os.path.dirname(os.path.realpath(__file__)) + "/content.txt")
+    # try:
+    #     file_context = file_object.read()
+    #     body = json.loads(file_context)
+    # finally:
+    #     file_object.close()
+
+    return body
+
+# 解析json格式数据，获取想要的数据列表
+def pars_body(body):
+    i = 0
+    iplist = []
+    while i < len(body['result']):
+        ip = body['result'][i]['cuccAddr']
+        if ip != None:
+            iplist.append(ip)
+        i += 1
+
+    return iplist
+
+# 根据IP获取主机对应的负责人信息和邮箱地址
+def get_hostuser_info(host):
+    url = 'http://xxxxxx/admin/server/list.do?ips=%s' % (host)
+    info = request_curl(url)['object']['lists']
+    info_dict = {}
+    if info:
+        info_dict['tech_admin'] = info[0]['tech_admin'].split(',')[0]
+        info_dict['sysop_admin'] = info[0]['sysop_admin'].split(',')[0]
+        info_dict['dw_tech_admin'] = info[0]['dw_tech_admin'].split(',')[0]
+        info_dict['dw_sysop_admin'] = info[0]['dw_sysop_admin'].split(',')[0]
+        info_dict['tech_admin_email'] = info_dict['dw_tech_admin'].split('dw_')[1] + "@xx.com"
+        info_dict['sysop_admin_email'] = info_dict['dw_sysop_admin'].split('dw_')[1] + "@xx.com"
+        info_dict['user_email'] = [info_dict['tech_admin_email'],info_dict['sysop_admin_email']]
+    else:
+        logging.info(host + info)
+
+    return info_dict
+
+# 检查扫描的端口是否符合规则，支持连续和不连续的方式扫描，如：1-65535或80,443
+def check_port(portrange):
+    try:
+        p1 = re.compile(r'(\d+)-(\d+)$')
+        p2 = re.compile(r'((\d+,)+)(\d+)$')
+        if p1.match(portrange):
+            return True
+        elif p2.match(portrange):
+            return True
+        else:
+            return False
+    except Exception as err:
+        logging.error(err)
+
+# 扫描主机端口执行函数，将结果记录到数据库
 def nmScan(host, portrange, whitelist = [80, 443]):
     nm = nmap.PortScanner()
     html = Template_html()
+    conn = ConDb()
     logging.info('scan the ports for host %s' % host)
     tmp = nm.scan(host, portrange, arguments='-sV --host-timeout 10m')
     try:
@@ -390,20 +531,16 @@ def nmScan(host, portrange, whitelist = [80, 443]):
                 deal = 'YES'
             else:
                 deal = 'NO'
-            try:
-                cursor.execute("insert into scan_port values (NULL, %s, %s, %s, %s, %s, NULL)",
-                               (host, port, status, service, deal))
-                conn.commit()
-            except:
-                conn.rollback()
+            sql = [host, port, status, service, deal]
+            conn.insert_TB('scan_port', sql, 'ip', 'port', 'status', 'services', 'deal')
 
         logging.info('To get host %s html template.' % host)
-        rs = html.html_template(host, 'open', 'NO')
-        sendemail(rs)
-
+        rs = html.html_template(host, 'open', 'NO', conn)
+        sendemail(rs[0], rs[1])
     except KeyError, e:
         logging.info("%s 扫描结果正常，无暴漏端口" % host)
 
+# 主函数，多进程并行执行任务
 def main(ip_list, port_list):
     p = Pool(32)
     for ip in ip_list:
@@ -415,21 +552,17 @@ def main(ip_list, port_list):
 
     p.close()
     p.join()
-    cursor.close()
-    conn.close()
 
     end_time = time.strftime("%H:%M:%S", time.localtime())
     print start_time, end_time
 
-
+# 执行入口函数
 if __name__ == '__main__':
-    # ips = get_iplist()  #通过接口获取CMDB上所有主机列表
-    # print len(ips), ips
-    ips = ['xxx.xxx.xxx.xxx','xxx.xxx.xxx.xxx']
-    ports = '1,2'   #or ports = '1-65535'
+    url = 'url'
+    ips = pars_body(request_curl(url)) #ips是一个list，如：['xxx.xxx.xxx.xxx','xxx.xxx.xxx.xxx']
+    print len(ips), ips[0],ips[1]
+    ports = '1-65535'
     if check_port(ports):
         main(ips, ports)
     else:
         logging.error('invaild port format.')
-
-
