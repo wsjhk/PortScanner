@@ -523,14 +523,14 @@ def check_port(portrange):
     except Exception as err:
         logging.error(err)
 
-# 扫描主机端口执行函数，将结果记录到数据库
+# nmap扫描主机端口执行函数，将结果记录到数据库，nmap扫描UDP端口特别慢
 def nmScan(host, portrange, whitelist = [80, 443]):
     nm = nmap.PortScanner()
     html = Template_html()
     conn = ConDb()
     logging.info('scan the ports for host %s' % host)
-    # tmp = nm.scan(host, portrange, arguments='-sV --host-timeout 10m')
-    tmp = nm.scan(host, portrange, arguments='-sV')
+    tmp = nm.scan(host, portrange, arguments='-sV -Pn --host-timeout 10m') # 禁ping快速扫描，设置超时时间
+    # tmp = nm.scan(host, portrange, arguments='-sV -Pn --min-rate=2000 --max-rate=3000') #设置速率，太大可能被发现或限制，太小扫描很慢
     logging.info(tmp)
     try:
         ports = tmp['scan'][host]['tcp'].keys()
@@ -546,10 +546,39 @@ def nmScan(host, portrange, whitelist = [80, 443]):
 
         logging.info('To get host %s html template.' % host)
         rs = html.html_template(host, 'open', 'NO', conn)
-        if rs:
-            sendemail(rs[0], rs[1])
-        else:
-            pass
+        # if rs:
+        #     sendemail(rs[0], rs[1])
+        # else:
+        #     pass
+    except Exception, e:
+        logging.info("%s扫描结果正常，无暴漏端口: %s" % (host,e))
+
+# masscan扫描主机端口执行函数，将结果记录到数据库，速度比nmap要快许多，但是不能扫描端口服务版本
+def masScan(host, portrange, whitelist = [80, 443]):
+    mas = masscan.PortScanner()
+    html = Template_html()
+    conn = ConDb()
+    logging.info('scan the ports for host %s' % host)
+    tmp = mas.scan(host, portrange, arguments='--rate=10000 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
+    logging.info(tmp)
+    try:
+        ports = tmp['scan'][host]['tcp'].keys()
+        for port in ports:
+            status = tmp['scan'][host]['tcp'][port]['state']
+            service = 'unknown'
+            if port in whitelist:
+                deal = 'YES'
+            else:
+                deal = 'NO'
+            sql = [host, port, status, service, deal]
+            conn.insert_TB('scan_port', sql, 'ip', 'port', 'status', 'services', 'deal')
+
+        logging.info('To get host %s html template.' % host)
+        rs = html.html_template(host, 'open', 'NO', conn)
+        # if rs:
+        #     sendemail(rs[0], rs[1])
+        # else:
+        #     pass
     except Exception, e:
         logging.info("%s扫描结果正常，无暴漏端口: %s" % (host,e))
 
@@ -557,6 +586,7 @@ def task_run(q, port_list):
     while True:
         if not q.empty():
             nmScan(q.get(), port_list)
+            # masScan(q.get(), port_list)
         else:
             break
 
