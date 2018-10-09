@@ -505,9 +505,12 @@ def check_port(portrange):
     try:
         p1 = re.compile(r'(\d+)-(\d+)$')
         p2 = re.compile(r'((\d+,)+)(\d+)$')
+        p3 = re.compile(r'(\d|\d{2}|\d{3}|\d{4}|\d{5})$')
         if p1.match(portrange):
             return True
         elif p2.match(portrange):
+            return True
+        elif p3.match(portrange):
             return True
         else:
             return False
