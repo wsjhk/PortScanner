@@ -434,7 +434,7 @@ class Template_html(object):
             )
 
             logging.info('write host %s html template to disk.' % ip)
-            with open(os.path.dirname(os.path.realpath(__file__)) + "/all_html/%s.html" % ip, 'wb') as f:
+            with open(os.path.dirname(os.path.realpath(__file__)) + "/templates/%s.html" % ip, 'wb') as f:
                 f.write(output)
             rs = [output, info_dict['user_email']]
         else:
