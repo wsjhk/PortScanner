@@ -410,7 +410,7 @@ class Template_html(object):
         return rs
 
 # 发送邮件函数
-def sendemail(content, user='xxx@yy.com'):
+def sendemail(content, user=['xxx@xx.com']):
     sender = 'xxx@xx.com'
     receiver = user
     subject = '[这是一封测试邮件]服务器端口扫描报告'
