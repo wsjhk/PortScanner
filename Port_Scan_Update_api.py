@@ -64,6 +64,39 @@ def ignore(ip, port, time):
 
     return convertToHtml(res, title)
 
+@app.route('/all', methods=['GET'])
+def get_all_html():
+    sql = "select distinct ip from scan_port limit 5000"
+    rs = con.runSql(sql.encode('utf-8'))
+
+    res = u'''
+        <table border="1" class="dataframe">
+          <thead>
+            <tr style="text-align: right;">
+              <th>HTML文件链接(共%s个)</th>
+            </tr>
+          </thead>
+          <tbody>''' % (len(rs))
+
+    for raw in rs:
+        td = '''<tr><th><a href="http://xxx:5000/one/%s.html">%s.html</a></th></tr>''' %(raw[0], raw[0])
+        res += td
+
+    res += u'''
+          </tbody>
+        </table>'''
+
+    return res
+
+@app.route('/one/<string:filename>', methods=['GET'])
+def get_one_html(filename):
+    try:
+        html = render_template(filename)
+    except Exception:
+        html = u"页面不存在！！！"
+
+    return html
+
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000)
     
