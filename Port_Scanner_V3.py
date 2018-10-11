@@ -577,8 +577,17 @@ def masScan(host, portrange, whitelist = [80, 443]):
                 deal = 'YES'
             else:
                 deal = 'NO'
-            sql = [host, port, status, service, deal]
-            conn.insert_TB('scan_port', sql, 'ip', 'port', 'status', 'services', 'deal')
+            # 扫描出来的端口在入口之前先查询是否有记录，如果存在则更新，如果不存在则添加。
+            # 以此多次执行全量扫描解决masscan少部分漏扫和nmap偶尔没有返回的情况。
+            query_sql = "select ip from scan_port where ip = '%s' and port = '%s'" %(host, port)
+            rs = conn.runSql(query_sql.encode('utf-8'))
+            if rs:
+                set = 'status = \"%s\", services = \"%s\", deal = \"%s\"' % (status, service, deal)
+                where = 'ip = \"%s\" and port = \"%s\"' % (host, port)
+                conn.update_TB('scan_port', set, where)
+            else:
+                insert_sql = [host, port, status, service, deal]
+                conn.insert_TB('scan_port', insert_sql, 'ip', 'port', 'status', 'services', 'deal')
 
         logging.info('To get host %s html template.' % host)
         rs = html.html_template(host, 'open', 'NO', conn)
