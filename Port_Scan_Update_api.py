@@ -8,6 +8,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
+con = ConDb()
+
 # 使用pandas生成html表格的函数
 def convertToHtml(result, title):
     d = {}
@@ -26,11 +28,22 @@ def convertToHtml(result, title):
 # 确认修复按钮和批量修复按钮调用的api接口入口
 @app.route('/security/<string:ip>/<string:port>', methods=['GET', 'POST'])
 def update(ip, port):
-    con = ConDb()
     mas = masscan.PortScanner()
     try:
         tmp = mas.scan(ip, port, arguments='--rate=10000 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
+        if "," in port:
+            ps = port.split(',')
+        else:
+            ps = [int(port)]
+
         ports = tmp['scan'][ip]['tcp'].keys()
+
+        for p in ps:
+            if int(p) not in ports:
+                set = 'status = \"%s\", deal = \"%s\"' % ('closed', 'YES')
+                where = 'ip = \"%s\" and port = \"%s\"' % (ip, p)
+                con.update_TB('scan_port', set, where)
+
         for p in ports:
             state = tmp['scan'][ip]['tcp'][p]['state']
             if state != 'open':
@@ -40,7 +53,10 @@ def update(ip, port):
             else:
                 pass
     except Exception, e:
-        print e
+        if e.message == "network is unreachable.":
+            set = 'status = \"%s\", deal = \"%s\"' % ('closed', 'YES')
+            where = 'ip = \"%s\" and port = \"%s\"' % (ip, port)
+            con.update_TB('scan_port', set, where)
 
     sql = "select distinct ip,port,services,status,deal,create_time from scan_port where ip = '%s' and port in (%s)" % (
         ip, port)
@@ -52,7 +68,6 @@ def update(ip, port):
 # 忽略按钮调用的api接口入口
 @app.route('/ignore/<string:ip>/<string:port>', methods=['GET', 'POST'])
 def ignore(ip, port, time):
-    con = ConDb()
     set = 'deal = \"%s\"' % ('ignore')
     where = 'ip = \"%s\" and port = \"%s\"' % (ip, port)
     con.update_TB('scan_port', set, where)
