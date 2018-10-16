@@ -555,7 +555,19 @@ def check_port(portrange):
 def nmScan(host, portrange):
     nm = nmap.PortScanner()
     logging.info('nmap scan the port %s for host %s' % (portrange, host))
-    tmp = nm.scan(host, portrange, arguments='-sV -Pn --host-timeout 10m')  # 禁ping快速扫描，设置超时时间
+    tmp = []
+    attempts = 0
+    success = False
+    # 如果出现异常重试，最多重试三次
+    while attempts < 3 and not success:
+        try:
+            tmp = nm.scan(host, portrange, arguments='-sV -Pn -host-timeout 20m')  # 禁ping快速扫描，设置超时时间
+            success = True
+        except:
+            attempts += 1
+            if attempts == 3:
+                break
+
     return tmp
 
 # masscan扫描主机端口执行函数，将结果记录到数据库，速度比nmap要快许多，但是不能扫描端口服务版本
@@ -564,11 +576,24 @@ def masScan(host, portrange, whitelist = [80, 443]):
     html = Template_html()
     conn = ConDb()
     logging.info('masscan scan the ports for host %s' % host)
-    mastmp = mas.scan(host, portrange, arguments='--rate=10000 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
-    logging.info(mastmp)
+
+    masports = ""
+    attempts = 0
+    success = False
+    # 如果出现异常重试，最多重试三次
+    while attempts < 3 and not success:
+        try:
+            mastmp = mas.scan(host, portrange, arguments='--rate=1000 --interface eth0 --router-mac 48-7a-da-78-f6-xx')
+            logging.info(mastmp)
+            success = True
+            masports = str(mastmp['scan'][host]['tcp'].keys()).replace("[", "").replace("]", "").replace(", ", ",")
+        except:
+            attempts += 1
+            if attempts == 3:
+                break
+
+    tmp = nmScan(host, masports)
     try:
-        masports = mastmp['scan'][host]['tcp'].keys()
-        tmp = nmScan(host, str(masports).replace("[", "").replace("]", "").replace(", ", ","))
         ports = tmp['scan'][host]['tcp'].keys()
         for port in ports:
             status = tmp['scan'][host]['tcp'][port]['state']
@@ -577,7 +602,7 @@ def masScan(host, portrange, whitelist = [80, 443]):
                 deal = 'YES'
             else:
                 deal = 'NO'
-            # 扫描出来的端口在入口之前先查询是否有记录，如果存在则更新，如果不存在则添加。
+            # 扫描出来的端口在入库之前先查询是否有记录，如果存在则更新，如果不存在则添加。
             # 以此多次执行全量扫描解决masscan少部分漏扫和nmap偶尔没有返回的情况。
             query_sql = "select ip from scan_port where ip = '%s' and port = '%s'" %(host, port)
             rs = conn.runSql(query_sql.encode('utf-8'))
