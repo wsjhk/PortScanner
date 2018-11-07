@@ -10,6 +10,25 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 con = ConDb()
 
+#通过双方约定盐值的方式验证token实现授权
+def token_auth(func):
+    def wrapper(*arg, **kwargs):
+        timestamp = request.headers.get("timestamp")
+        sign = request.headers.get("sign")
+        mytime = str(int(time.time()))
+        m1 = md5.new()
+        m1.update(timestamp + "bbb")
+        if sign == m1.hexdigest():
+            if int(mytime) > int(timestamp) + 24 * 60 * 60:
+                data = {"status": 1, "results": "Token is expired."}
+                return json.dumps(data)
+            else:
+                return func(*arg, **kwargs)
+        else:
+            data = {"status": 1, "results": "Token validate failed."}
+            return json.dumps(data)
+    return wrapper
+
 # 使用pandas生成html表格的函数
 def convertToHtml(result, title):
     d = {}
@@ -27,6 +46,7 @@ def convertToHtml(result, title):
 
 # 确认修复按钮和批量修复按钮调用的api接口入口
 @app.route('/security/<string:ip>/<string:port>', methods=['GET', 'POST'])
+@token_auth
 def update(ip, port):
     mas = masscan.PortScanner()
     try:
@@ -67,6 +87,7 @@ def update(ip, port):
 
 # 忽略按钮调用的api接口入口
 @app.route('/ignore/<string:ip>/<string:port>', methods=['GET', 'POST'])
+@token_auth
 def ignore(ip, port, time):
     set = 'deal = \"%s\"' % ('ignore')
     where = 'ip = \"%s\" and port = \"%s\"' % (ip, port)
