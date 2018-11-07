@@ -1,8 +1,9 @@
 # -*- coding:utf-8 -*-
 
-import pandas, masscan, os
+import pandas, masscan, os, json, time, md5
+from functools import wraps
 from Port_Scanner_V3 import ConDb
-from flask import Flask
+from flask import Flask, render_template, request
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
@@ -12,6 +13,7 @@ con = ConDb()
 
 #通过双方约定盐值的方式验证token实现授权
 def token_auth(func):
+    @wraps(func)
     def wrapper(*arg, **kwargs):
         timestamp = request.headers.get("timestamp")
         sign = request.headers.get("sign")
