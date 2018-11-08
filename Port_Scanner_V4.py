@@ -515,7 +515,7 @@ def coroutine(q, port_list):
 
 # 主函数，多进程并行执行任务
 def main(ip_list, port_list):
-    cpu_num = cpu_count()
+    cpu_num = cpu_count()/2
     if len(ip_list) < cpu_num:
         p_num = len(ip_list)
     else:
