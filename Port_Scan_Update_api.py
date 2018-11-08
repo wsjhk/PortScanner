@@ -52,7 +52,8 @@ def convertToHtml(result, title):
 def update(ip, port):
     mas = masscan.PortScanner()
     try:
-        tmp = mas.scan(ip, port, arguments='--rate=10000 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
+        # --wait参数使得扫描之后不再等待，直接返回，默认是10s
+        tmp = mas.scan(ip, port, arguments='--rate=10000 --wait 0 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
         if "," in port:
             ps = port.split(',')
         else:
