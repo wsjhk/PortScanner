@@ -51,9 +51,19 @@ def convertToHtml(result, title):
 @token_auth
 def update(ip, port):
     mas = masscan.PortScanner()
+    attempts = 0
+    tmp = []
+    success = False
+    # 如果出现异常重试，最多重试三次
+    while attempts < 3 and not success:
+        try:
+            tmp = mas.scan(ip, port, arguments='--rate=10000 --wait 0 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
+            success = True
+        except:
+            attempts += 1
+            if attempts == 3:
+                break
     try:
-        # --wait参数使得扫描之后不再等待，直接返回，默认是10s
-        tmp = mas.scan(ip, port, arguments='--rate=10000 --wait 0 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
         if "," in port:
             ps = port.split(',')
         else:
@@ -73,12 +83,11 @@ def update(ip, port):
                 set = 'status = \"%s\", deal = \"%s\"' % (state, 'YES')
             else:
                 set = 'status = \"%s\", deal = \"%s\"' % (state, 'NO')
-                
+
             where = 'ip = \"%s\" and port = \"%s\"' % (ip, p)
             con.update_TB('scan_port', set, where)
     except Exception, e:
-        if e.message == "network is unreachable.":
-            print e.message
+        print e
 
     sql = "select distinct ip,port,services,status,deal,create_time from scan_port where ip = '%s' and port in (%s)" % (
         ip, port)
