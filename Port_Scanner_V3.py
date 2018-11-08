@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from email.header import Header
 from multiprocessing import Queue, cpu_count, Process
 from StringIO import StringIO
+from socket_scan import ip_scan
 
 '''
     1.masscan只扫描出open的端口，速度快，扫描准，但是没有服务版本名。
@@ -584,6 +585,7 @@ def masScan(host, portrange, whitelist = [80, 443]):
     while attempts < 3 and not success:
         try:
             mastmp = mas.scan(host, portrange, arguments='--rate=1000 --interface eth0 --router-mac 48-7a-da-78-f6-xx')
+            # mastmp = ip_scan(host, portrange)
             logging.info(mastmp)
             success = True
             masports = str(mastmp['scan'][host]['tcp'].keys()).replace("[", "").replace("]", "").replace(", ", ",")
