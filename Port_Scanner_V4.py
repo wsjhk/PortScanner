@@ -575,23 +575,39 @@ def shangbao(batchNo, gameId, gameName, ip_list, email_user):
             "data": data
         }
 
-        res = html.email_temp(batchNo, gameId, gameName, len(scanData))
-        # sendemail(res, email_user)
-        sendemail(res)
+        with open(os.path.dirname(os.path.realpath(__file__)) + "/templates/lock.txt", 'r') as f:
+            num = int(f.read())
 
-        # return request_curl(url3, body)
+        if num == 10:
+            res = html.email_temp(batchNo, gameId, gameName, len(scanData))
+            # sendemail(res, email_user)
+            sendemail(res)
+        else:
+            pass
+
+        return request_curl(url3, body)
     else:
         return json.dumps({
-        "status": 200,
-        "message": None,
-        "data": None
-    })
+                    "status": 200,
+                    "message": None,
+                    "data": None
+                })
 
 
 # 执行入口函数
 if __name__ == '__main__':
-
     batchNo = str(int(time.time()))
+    
+    # 初始化时templates/lock.txt文件设置为“0”
+    with open(os.path.dirname(os.path.realpath(__file__)) + "/templates/lock.txt", 'r') as f:
+        num = int(f.read())
+
+    with open(os.path.dirname(os.path.realpath(__file__)) + "/templates/lock.txt", 'w') as f:
+        if num <= 9:
+            num += 1
+            f.write("%s" % (str(num)))
+        else:
+            f.write("1")
 
     url1 = "http://xxxxxx/api/game/listAllAvailableGames.do"
 
@@ -620,7 +636,7 @@ if __name__ == '__main__':
     for i in all:
         all_ip += i[2]
 
-    # main(all_ip, "1-65535")
+    main(all_ip, "1-65535")
 
     for i in all:
         gameId, gameName, ip_list, email_user = i[0], i[1], i[2], i[3]
