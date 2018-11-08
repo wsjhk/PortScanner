@@ -71,15 +71,14 @@ def update(ip, port):
             state = tmp['scan'][ip]['tcp'][p]['state']
             if state != 'open':
                 set = 'status = \"%s\", deal = \"%s\"' % (state, 'YES')
-                where = 'ip = \"%s\" and port = \"%s\"' % (ip, p)
-                con.update_TB('scan_port', set, where)
             else:
-                pass
+                set = 'status = \"%s\", deal = \"%s\"' % (state, 'NO')
+                
+            where = 'ip = \"%s\" and port = \"%s\"' % (ip, p)
+            con.update_TB('scan_port', set, where)
     except Exception, e:
         if e.message == "network is unreachable.":
-            set = 'status = \"%s\", deal = \"%s\"' % ('closed', 'YES')
-            where = 'ip = \"%s\" and port = \"%s\"' % (ip, port)
-            con.update_TB('scan_port', set, where)
+            print e.message
 
     sql = "select distinct ip,port,services,status,deal,create_time from scan_port where ip = '%s' and port in (%s)" % (
         ip, port)
