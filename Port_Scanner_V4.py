@@ -575,6 +575,7 @@ def shangbao(batchNo, gameId, gameName, ip_list, email_user):
             "data": data
         }
 
+        # 设置每天扫描10次，每次扫描都上报数据，但是每天只发送一次邮件，用文件锁来控制次数
         with open(os.path.dirname(os.path.realpath(__file__)) + "/templates/lock.txt", 'r') as f:
             num = int(f.read())
 
