@@ -7,6 +7,9 @@
 
 3）Port_Scanner_V3.py是在V2版本的基础上结合masscan和nmap的优缺点整合的，先使用masscan扫描，然后使用nmap指定端口扫描，然后添加了Port_Scan_Update_api.py使用Flask实现发送邮件的确认修复功能api接口。Port_Scanner_V3.py+Port_Scan_Update_api.py结合使用。# 扫描出来的端口在入库之前先查询是否有记录，如果存在则更新，如果不存在则添加，以此多次执行全量扫描解决masscan少部分漏扫和nmap偶尔没有返回的情况。
 
+4)Port_Scanner_V3.py版本是和其他系统联动，将扫描出来的数据上报到其他系统上，然后发送统计的邮件，邮件内容也和V3版本不同。
+
+
 端口安全扫描总结：
 
   1.采用masscan+nmap结合扫描，加快扫描速度。nmap速度奇慢(一天也扫不完860台机器)，但是扫描全面，masscan扫描快，但是不能扫描端口服务名。
