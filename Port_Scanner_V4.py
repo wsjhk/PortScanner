@@ -239,7 +239,7 @@ class Template_html(object):
     															<hr/>
     															<p class="text-body mail-dec-text" style="Margin:0;Margin-bottom:10px;background:#f4f4f4;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;line-height:30px;margin:0;margin-bottom:0;padding:0;text-align:left;text-indent:30px;vertical-align:middle">
                                                                     <span style="color:#E7505A">请点击链接处理：
-    																<a href="http://devops.test.gop.yy.com/dev/serverSecurityRecord/index.do?projectId=%(gameid)s">%(gamename)s</a></span>
+    																<a href="http://xxxxxx/dev/serverSecurityRecord/index.do?projectId=%(gameid)s">%(gamename)s</a></span>
                                                                 </p>
     															<hr/>
     															<p class="text-body mail-dec-text" style="Margin:0;Margin-bottom:10px;background:#f4f4f4;color:#0a0a0a;font-family:Microsoft Yahei;font-size:11pt;font-weight:400;line-height:30px;margin:0;margin-bottom:0;padding:0;text-align:left;text-indent:30px;vertical-align:middle">
