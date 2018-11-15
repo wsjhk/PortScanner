@@ -452,7 +452,7 @@ def masScan(host, portrange, whitelist = [80, 443]):
     # 如果出现异常重试，最多重试三次
     while attempts < 3 and not success:
         try:
-            mastmp = mas.scan(host, portrange, arguments='--rate=1000 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
+            mastmp = mas.scan(host, portrange, arguments='--rate=1000 --interface eth0 --router-mac 48-7a-da-78-f6-ae', sudo=True)
             logging.info(mastmp)
             success = True
             masports = str(mastmp['scan'][host]['tcp'].keys()).replace("[", "").replace("]", "").replace(", ", ",")
