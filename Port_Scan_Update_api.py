@@ -57,7 +57,7 @@ def update(ip, port):
     # 如果出现异常重试，最多重试三次
     while attempts < 3 and not success:
         try:
-            tmp = mas.scan(ip, port, arguments='--rate=10000 --wait 0 --interface eth0 --router-mac 48-7a-da-78-f6-ae')
+            tmp = mas.scan(ip, port, arguments='--rate=10000 --wait 0 --interface eth0 --router-mac 48-7a-da-78-f6-ae', sudo=True)
             success = True
         except:
             attempts += 1
