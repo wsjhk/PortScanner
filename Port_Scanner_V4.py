@@ -468,18 +468,22 @@ def masScan(host, portrange, whitelist = [80, 443]):
         for port in ports:
             status = tmp['scan'][host]['tcp'][port]['state']
             service = tmp['scan'][host]['tcp'][port]['name']
-            if port in whitelist:
+            if port in whitelist or (service not in ['ssh', 'redis', 'mysql', 'ftp', 'rsync', 'smtp', 'mongodb', 'http', 'erlang', 'memcache', 'rabbitmq'] and port not in [3360,6379,20,21,25,27017,9022,32200,22,4369,11211,5672,873]):
                 deal = 'YES'
             else:
                 deal = 'NO'
             # 扫描出来的端口在入库之前先查询是否有记录，如果存在则更新，如果不存在则添加。
             # 以此多次执行全量扫描解决masscan少部分漏扫和nmap偶尔没有返回的情况。
-            query_sql = "select ip from scan_port where ip = '%s' and port = '%s'" %(host, port)
+            query_sql = "select ip,deal from scan_port where ip = '%s' and port = '%s'" %(host, port)
             rs = conn.runSql(query_sql.encode('utf-8'))
             if rs:
-                set = 'status = \"%s\", services = \"%s\", deal = \"%s\"' % (status, service, deal)
-                where = 'ip = \"%s\" and port = \"%s\"' % (host, port)
-                conn.update_TB('scan_port', set, where)
+                logging.info("查询结果：%s" % rs)
+                if rs[0][1] == 'ignore':
+                    pass
+                else:
+                    set = 'status = \"%s\", services = \"%s\", deal = \"%s\"' % (status, service, deal)
+                    where = 'ip = \"%s\" and port = \"%s\"' % (host, port)
+                    conn.update_TB('scan_port', set, where)
             else:
                 insert_sql = [host, port, status, service, deal]
                 conn.insert_TB('scan_port', insert_sql, 'ip', 'port', 'status', 'services', 'deal')
