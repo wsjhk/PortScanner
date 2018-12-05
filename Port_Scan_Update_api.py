@@ -109,9 +109,14 @@ def update(ip, port):
 @app.route('/ignore/<string:ip>/<string:port>', methods=['GET', 'POST'])
 @token_auth
 def ignore(ip, port, time):
-    set = 'deal = \"%s\"' % ('ignore')
-    where = 'ip = \"%s\" and port = \"%s\"' % (ip, port)
-    con.update_TB('scan_port', set, where)
+    if "," in port:
+        ps = port.split(',')
+    else:
+        ps = [int(port)]
+    for p in ps:
+        set = 'deal = \"%s\"' % ('ignore')
+        where = 'ip = \"%s\" and port = \"%s\"' % (ip, p)
+        con.update_TB('scan_port', set, where)
 
     sql = "select distinct ip,port,services,status,deal,create_time from scan_port where ip = '%s' and port in (%s)" % (
         ip, port)
