@@ -62,10 +62,15 @@ def update(ip, port):
         except:
             attempts += 1
             if attempts == 3:
-                # 端口关闭之后扫描也会出现network is unreachable.的异常，所以认为是关闭了
-                set = 'status = \"%s\", deal = \"%s\"' % ('closed', 'YES')
-                where = 'ip = \"%s\" and port = \"%s\"' % (ip, port)
-                con.update_TB('scan_port', set, where)
+                if "," in port:
+                    ps = port.split(',')
+                else:
+                    ps = [int(port)]
+                for p in ps:
+                    # 端口关闭之后扫描也会出现network is unreachable.的异常，所以认为是关闭了
+                    set = 'status = \"%s\", deal = \"%s\"' % ('closed', 'YES')
+                    where = 'ip = \"%s\" and port = \"%s\"' % (ip, int(p))
+                    con.update_TB('scan_port', set, where)
                 break
     try:
         if "," in port:
